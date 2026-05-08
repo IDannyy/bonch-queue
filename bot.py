@@ -57,6 +57,16 @@ _BASE = _os.path.dirname(_os.path.abspath(__file__))
 flask_app = Flask(__name__, static_folder=_os.path.join(_BASE, "webapp"))
 
 
+@flask_app.route("/debug")
+def debug():
+    base = _BASE
+    webapp = _os.path.join(_BASE, "webapp")
+    exists = _os.path.exists(webapp)
+    files = _os.listdir(webapp) if exists else []
+    app_files = _os.listdir("/app") if _os.path.exists("/app") else []
+    return jsonify({"base": base, "webapp": webapp, "exists": exists, "files": files, "app_root": app_files})
+
+
 @flask_app.route("/")
 def index():
     return send_from_directory(_os.path.join(_BASE, "webapp"), "index.html")
