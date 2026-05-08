@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Очередь — ИСТ-321</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+:root {
+  --bg:       #1a1508;
+  --surface:  #221c09;
+  --card:     #2a220c;
+  --border:   #3d3010;
+  --amber:    #f59e0b;
+  --amber-2:  #fbbf24;
+  --amber-3:  #fde68a;
+  --amber-dim:#78350f;
+  --amber-glow: rgba(245,158,11,0.12);
+  --orange:   #ea580c;
+  --white:    #fef3c7;
+  --muted:    #92744a;
+  --danger:   #dc2626;
+  --text:     #fef9ee;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* noise texture overlay */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.6}
+
+/* HEADER */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:12px;position:relative}
+.logo-wrap{width:42px;height:42px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid var(--border)}
+.logo-wrap img{width:100%;height:100%;object-fit:cover}
+.logo-text{flex:1}
+.logo-text .uni{font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--amber-2);line-height:1}
+.logo-text .dept{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.02em}
+.group-badge{font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--amber);background:var(--amber-glow);border:1px solid var(--amber-dim);padding:5px 10px;border-radius:20px}
+
+/* TABS */
+.subjects{padding:12px 16px 0;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;position:relative;z-index:1}
+.subjects::-webkit-scrollbar{display:none}
+.subj-tab{font-family:'Unbounded',sans-serif;font-size:10px;font-weight:500;letter-spacing:.04em;white-space:nowrap;padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;flex-shrink:0}
+.subj-tab.active{background:var(--amber);border-color:var(--amber);color:#1a0f00;font-weight:700}
+
+/* PANEL */
+.panel{padding:16px;position:relative;z-index:1}
+.subject-full{font-family:'Unbounded',sans-serif;font-size:14px;font-weight:600;color:var(--white);margin-bottom:6px;line-height:1.35}
+.queue-meta{font-size:11px;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block;animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* QUEUE LIST */
+.queue-list{display:flex;flex-direction:column;gap:8px}
+.queue-empty{text-align:center;padding:48px 0;color:var(--muted);font-size:13px}
+.queue-empty .icon{font-size:40px;display:block;margin-bottom:14px;opacity:.4}
+
+.person-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;animation:slideIn .22s ease forwards;opacity:0;transform:translateY(6px)}
+@keyframes slideIn{to{opacity:1;transform:translateY(0)}}
+.person-card.is-me{border-color:var(--amber-dim);background:linear-gradient(135deg,#2e1f04 0%,var(--card) 60%)}
+
+.pos-num{font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;width:28px;text-align:center;flex-shrink:0;color:var(--muted)}
+.pos-num.gold{color:#f59e0b}.pos-num.silver{color:#94a3b8}.pos-num.bronze{color:#c2844a}
+
+.avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;flex-shrink:0;border:1.5px solid var(--border)}
+.avatar.me-av{background:var(--amber-dim);color:var(--amber-2);border-color:var(--amber-dim)}
+.avatar.other-av{background:#2e2408;color:var(--muted)}
+
+.person-info{flex:1;min-width:0}
+.person-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me-tag{font-size:9px;background:var(--amber-glow);color:var(--amber);border:1px solid var(--amber-dim);border-radius:4px;padding:1px 5px;margin-left:6px;font-weight:700;letter-spacing:.05em;vertical-align:middle}
+.person-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+.tg-btn{width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s;text-decoration:none;color:var(--muted)}
+.tg-btn.active-tg:active{border-color:#229ED9;color:#229ED9;background:rgba(34,158,217,0.1)}
+
+/* ACTIONS */
+.actions{padding:0 16px 24px;display:flex;flex-direction:column;gap:8px;position:relative;z-index:1}
+.btn{width:100%;padding:15px;border-radius:14px;border:none;font-family:'Unbounded',sans-serif;font-size:12px;font-weight:600;letter-spacing:.04em;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-primary{background:linear-gradient(135deg,var(--orange) 0%,var(--amber) 100%);color:#1a0800;box-shadow:0 4px 20px rgba(245,158,11,0.25)}
+.btn-primary:active{transform:scale(.97);box-shadow:0 2px 10px rgba(245,158,11,0.15)}
+.btn-secondary{background:var(--card);color:var(--white);border:1px solid var(--border)}
+.btn-secondary:active{background:#2e2408;transform:scale(.98)}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid #3b0f0f}
+.btn-danger:active{background:rgba(220,38,38,.05);transform:scale(.98)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+
+.sep{height:1px;background:var(--border);margin:4px 0 4px}
+
+/* LOADING */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:220px;gap:14px;color:var(--muted);font-size:12px}
+.spinner{width:30px;height:30px;border:2px solid var(--border);border-top-color:var(--amber);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOAST */
+.toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--card);border:1px solid var(--amber-dim);color:var(--amber-3);padding:10px 20px;border-radius:20px;font-size:12px;font-family:'Unbounded',sans-serif;font-weight:500;opacity:0;transition:all .22s;pointer-events:none;z-index:999;white-space:nowrap;letter-spacing:.02em}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo-wrap">
+    <img src="logo.png" alt="СПбГУТ">
+  </div>
+  <div class="logo-text">
+    <div class="uni">СПбГУТ</div>
+    <div class="dept">им. проф. М.А. Бонч-Бруевича</div>
+  </div>
+  <div class="group-badge">ИСТ-321</div>
+</div>
+
+<div class="subjects" id="tabs"></div>
+
+<div class="panel" id="panel">
+  <div class="loading"><div class="spinner"></div><span>Загрузка очереди...</span></div>
+</div>
+
+<div class="actions" id="actions"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready(); tg.expand();
+
+const SUBJECTS = [
+  "Методы и средства проектирования ИС и Т",
+  "Технологии Front-end разработки веб-приложений",
+  "Современные операционные системы",
+  "Администрирование баз данных"
+];
+const SHORT = ["МиСПИСиТ","Front-end","СОС","АБД"];
+
+let idx = 0;
+let queues = {0:[],1:[],2:[],3:[]};
+const me = tg.initDataUnsafe?.user || {};
+const myId = me.id || null;
+const myName = [me.first_name, me.last_name].filter(Boolean).join(' ') || me.username || 'Аноним';
+const myUsername = me.username || null;
+const API = window.location.origin;
+
+async function loadQueues() {
+  try {
+    const r = await fetch(API + '/api/queues');
+    queues = await r.json();
+  } catch(e) { showToast('Ошибка загрузки'); }
+  renderAll();
+}
+
+async function doAction(action) {
+  if (!myId) { showToast('Откройте через Telegram'); return; }
+  try {
+    const r = await fetch(API + '/api/action', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action, idx, user_id:myId, user_name:myName, username:myUsername})
+    });
+    const res = await r.json();
+    if (res.ok) {
+      showToast({join:'✅ Ты в очереди!', leave:'Ты вышел из очереди', skip:'⏭ Ход пропущен'}[action] || 'Готово');
+      await loadQueues();
+    } else {
+      showToast({already_in:'Ты уже в очереди', not_in:'Тебя нет в очереди', last:'Ты последний в очереди'}[res.error] || 'Ошибка');
+    }
+  } catch(e) { showToast('Ошибка соединения'); }
+}
+
+function initials(n){ return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = SHORT.map((s,i) =>
+    `<button class="subj-tab${i===idx?' active':''}" onclick="pick(${i})">${s}</button>`
+  ).join('');
+}
+
+function renderQueue() {
+  const q = queues[idx] || [];
+  const myPos = q.findIndex(u => u.id == myId);
+  const medals = ['🥇','🥈','🥉'];
+  const pcls = ['gold','silver','bronze'];
+
+  let list = '';
+  if (!q.length) {
+    list = `<div class="queue-empty"><span class="icon">📋</span>Очередь пуста — будь первым!</div>`;
+  } else {
+    list = '<div class="queue-list">' + q.map((u,i) => {
+      const isMe = u.id == myId;
+      const tgPart = u.username
+        ? `<a class="tg-btn active-tg" href="#" onclick="openTg('${u.username}');return false">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
+          </a>`
+        : `<div class="tg-btn" style="opacity:.18;cursor:default">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
+          </div>`;
+      return `<div class="person-card${isMe?' is-me':''}" style="animation-delay:${.03+i*.05}s">
+        <div class="pos-num ${pcls[i]||''}">${medals[i]||i+1}</div>
+        <div class="avatar ${isMe?'me-av':'other-av'}">${initials(u.name)}</div>
+        <div class="person-info">
+          <div class="person-name">${u.name}${isMe?'<span class="me-tag">ТЫ</span>':''}</div>
+          <div class="person-sub">${u.username?'@'+u.username:'нет username'}</div>
+        </div>
+        ${tgPart}
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  document.getElementById('panel').innerHTML = `
+    <div class="subject-full">${SUBJECTS[idx]}</div>
+    <div class="queue-meta">
+      <span class="dot"></span>
+      ${!q.length ? 'Очередь пуста' : `В очереди: ${q.length} чел.`}
+      ${myPos>=0 ? ` · Позиция ${myPos+1}` : ''}
+    </div>
+    ${list}`;
+}
+
+function renderActions() {
+  const q = queues[idx] || [];
+  const myPos = q.findIndex(u => u.id == myId);
+  const inQ = myPos >= 0;
+  const canSkip = inQ && myPos + 1 < q.length;
+  let h = '';
+  if (!inQ) {
+    h += `<button class="btn btn-primary" onclick="doAction('join')">✅ Встать в очередь</button>`;
+  } else {
+    h += `<button class="btn btn-secondary" onclick="doAction('skip')" ${!canSkip?'disabled':''}>⏭ Пропустить ход</button>`;
+    h += `<button class="btn btn-danger" onclick="doAction('leave')">❌ Выйти из очереди</button>`;
+  }
+  h += `<div class="sep"></div>`;
+  h += `<button class="btn btn-secondary" onclick="loadQueues()">🔄 Обновить</button>`;
+  document.getElementById('actions').innerHTML = h;
+}
+
+function renderAll(){ renderTabs(); renderQueue(); renderActions(); }
+
+function pick(i) {
+  idx = i; renderAll();
+  document.querySelectorAll('.subj-tab')[i]?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+}
+
+function openTg(u){ tg.openLink('https://t.me/'+u); }
+
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2400);
+}
+
+loadQueues();
+setInterval(loadQueues, 12000);
+</script>
+</body>
+</html>
