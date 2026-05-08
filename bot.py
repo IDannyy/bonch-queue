@@ -52,12 +52,14 @@ def load_state():
 
 # ── FLASK ──────────────────────────────────────────────────────────────────
 
-flask_app = Flask(__name__, static_folder="webapp")
+import os as _os
+_BASE = _os.path.dirname(_os.path.abspath(__file__))
+flask_app = Flask(__name__, static_folder=_os.path.join(_BASE, "webapp"))
 
 
 @flask_app.route("/")
 def index():
-    return send_from_directory("webapp", "index.html")
+    return send_from_directory(_os.path.join(_BASE, "webapp"), "index.html")
 
 
 @flask_app.route("/api/queues")
