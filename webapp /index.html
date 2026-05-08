@@ -8,20 +8,20 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 :root {
-  --bg:       #1a1508;
-  --surface:  #221c09;
-  --card:     #2a220c;
-  --border:   #3d3010;
+  --bg:       #000000;
+  --surface:  #0d0d0d;
+  --card:     #141414;
+  --border:   #2a2a2a;
   --amber:    #f59e0b;
   --amber-2:  #fbbf24;
   --amber-3:  #fde68a;
   --amber-dim:#78350f;
   --amber-glow: rgba(245,158,11,0.12);
   --orange:   #ea580c;
-  --white:    #fef3c7;
-  --muted:    #92744a;
+  --white:    #ffffff;
+  --muted:    #666666;
   --danger:   #dc2626;
-  --text:     #fef9ee;
+  --text:     #f5f5f5;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
@@ -30,12 +30,10 @@ html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.6}
 
 /* HEADER */
-.header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:12px;position:relative}
-.logo-wrap{width:42px;height:42px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid var(--border)}
-.logo-wrap img{width:100%;height:100%;object-fit:cover}
-.logo-text{flex:1}
-.logo-text .uni{font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--amber-2);line-height:1}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:12px}
+.logo-text .uni{font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;letter-spacing:.04em;color:var(--white);line-height:1}
 .logo-text .dept{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.02em}
+.logo-text{flex:1}
 .group-badge{font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--amber);background:var(--amber-glow);border:1px solid var(--amber-dim);padding:5px 10px;border-radius:20px}
 
 /* TABS */
@@ -101,12 +99,12 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 <body>
 
 <div class="header">
-  <div class="logo-wrap">
-    <img src="logo.png" alt="СПбГУТ">
+  <div class="logo-wrap" style="display:none">
+    <img src="data:image/png;base64,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" alt="СПбГУТ">
   </div>
   <div class="logo-text">
-    <div class="uni">СПбГУТ</div>
-    <div class="dept">им. проф. М.А. Бонч-Бруевича</div>
+    <div class="uni">Bonch Queue</div>
+    <div class="dept">Очередь на сдачу</div>
   </div>
   <div class="group-badge">ИСТ-321</div>
 </div>
