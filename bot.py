@@ -1,6 +1,5 @@
 import os
 import json
-import asyncio
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -23,14 +22,13 @@ SUBJECTS = [
     "Администрирование баз данных",
 ]
 
-SUBJECT_SHORT = {
-    "Методы и средства проектирования ИС и Т": "МиСПИСиТ",
-    "Технологии Front-end разработки веб-приложений": "Front-end",
-    "Современные операционные системы": "СОС",
-    "Администрирование баз данных": "АБД",
-}
+SUBJECT_SHORT = [
+    "МиСПИСиТ",
+    "Front-end",
+    "СОС",
+    "АБД",
+]
 
-# queues: {subject_name: [{"id": user_id, "name": str}, ...]}
 queues: dict[str, list[dict]] = {s: [] for s in SUBJECTS}
 
 
@@ -48,13 +46,8 @@ def load_state():
             queues[s] = data.get(s, [])
 
 
-def get_user_name(update: Update) -> str:
-    user = update.effective_user
-    name = user.full_name or user.username or str(user.id)
-    return name
-
-
-def queue_text(subject: str) -> str:
+def queue_text(idx: int) -> str:
+    subject = SUBJECTS[idx]
     q = queues[subject]
     if not q:
         return f"📋 <b>{subject}</b>\n\nОчередь пуста."
@@ -67,23 +60,23 @@ def queue_text(subject: str) -> str:
 
 def main_menu_keyboard() -> InlineKeyboardMarkup:
     buttons = []
-    for s in SUBJECTS:
-        short = SUBJECT_SHORT[s]
-        buttons.append([InlineKeyboardButton(f"📚 {short}", callback_data=f"subj|{s}")])
+    for i, short in enumerate(SUBJECT_SHORT):
+        buttons.append([InlineKeyboardButton(f"📚 {short}", callback_data=f"subj:{i}")])
     return InlineKeyboardMarkup(buttons)
 
 
-def subject_keyboard(subject: str, user_id: int) -> InlineKeyboardMarkup:
+def subject_keyboard(idx: int, user_id: int) -> InlineKeyboardMarkup:
+    subject = SUBJECTS[idx]
     q = queues[subject]
     in_queue = any(u["id"] == user_id for u in q)
     buttons = []
     if not in_queue:
-        buttons.append([InlineKeyboardButton("✅ Встать в очередь", callback_data=f"join|{subject}")])
+        buttons.append([InlineKeyboardButton("✅ Встать в очередь", callback_data=f"join:{idx}")])
     else:
         pos = next(i + 1 for i, u in enumerate(q) if u["id"] == user_id)
-        buttons.append([InlineKeyboardButton(f"⏭ Пропустить ход (позиция {pos})", callback_data=f"skip|{subject}")])
-        buttons.append([InlineKeyboardButton("❌ Выйти из очереди", callback_data=f"leave|{subject}")])
-    buttons.append([InlineKeyboardButton("🔄 Обновить", callback_data=f"refresh|{subject}")])
+        buttons.append([InlineKeyboardButton(f"⏭ Пропустить ход (поз. {pos})", callback_data=f"skip:{idx}")])
+        buttons.append([InlineKeyboardButton("❌ Выйти из очереди", callback_data=f"leave:{idx}")])
+    buttons.append([InlineKeyboardButton("🔄 Обновить", callback_data=f"ref:{idx}")])
     buttons.append([InlineKeyboardButton("« Назад", callback_data="menu")])
     return InlineKeyboardMarkup(buttons)
 
@@ -119,13 +112,15 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    action, subject = data.split("|", 1)
+    action, idx_str = data.split(":")
+    idx = int(idx_str)
+    subject = SUBJECTS[idx]
 
-    if action == "subj" or action == "refresh":
+    if action in ("subj", "ref"):
         await query.edit_message_text(
-            queue_text(subject),
+            queue_text(idx),
             parse_mode="HTML",
-            reply_markup=subject_keyboard(subject, user_id),
+            reply_markup=subject_keyboard(idx, user_id),
         )
         return
 
@@ -138,11 +133,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_state()
         pos = len(q)
         await query.edit_message_text(
-            queue_text(subject) + f"\n\n✅ Ты добавлен на позицию <b>{pos}</b>",
+            queue_text(idx) + f"\n\n✅ Ты добавлен на позицию <b>{pos}</b>",
             parse_mode="HTML",
-            reply_markup=subject_keyboard(subject, user_id),
+            reply_markup=subject_keyboard(idx, user_id),
         )
-        # уведомление тому, кто стоит перед новым участником
         if pos > 1:
             prev = q[pos - 2]
             try:
@@ -157,44 +151,41 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action == "skip":
         q = queues[subject]
-        idx = next((i for i, u in enumerate(q) if u["id"] == user_id), None)
-        if idx is None:
+        idx_user = next((i for i, u in enumerate(q) if u["id"] == user_id), None)
+        if idx_user is None:
             await query.answer("Тебя нет в очереди.", show_alert=True)
             return
-        if idx + 1 >= len(q):
+        if idx_user + 1 >= len(q):
             await query.answer("Ты последний — пропускать некого.", show_alert=True)
             return
-        # меняем местами с следующим
-        q[idx], q[idx + 1] = q[idx + 1], q[idx]
+        q[idx_user], q[idx_user + 1] = q[idx_user + 1], q[idx_user]
         save_state()
-        new_pos = idx + 2
-        # уведомляем того, кто занял освободившееся место
-        moved_up = q[idx]
+        new_pos = idx_user + 2
+        moved_up = q[idx_user]
         try:
             await context.bot.send_message(
                 chat_id=moved_up["id"],
-                text=f"🔔 <b>{subject}</b>\n<b>{user_name}</b> пропустил ход — ты поднялся на позицию <b>{idx + 1}</b>!",
+                text=f"🔔 <b>{subject}</b>\n<b>{user_name}</b> пропустил ход — ты поднялся на позицию <b>{idx_user + 1}</b>!",
                 parse_mode="HTML",
             )
         except Exception:
             pass
         await query.edit_message_text(
-            queue_text(subject) + f"\n\n⏭ Ты переместился на позицию <b>{new_pos}</b>",
+            queue_text(idx) + f"\n\n⏭ Ты переместился на позицию <b>{new_pos}</b>",
             parse_mode="HTML",
-            reply_markup=subject_keyboard(subject, user_id),
+            reply_markup=subject_keyboard(idx, user_id),
         )
         return
 
     if action == "leave":
         q = queues[subject]
-        idx = next((i for i, u in enumerate(q) if u["id"] == user_id), None)
-        if idx is None:
+        idx_user = next((i for i, u in enumerate(q) if u["id"] == user_id), None)
+        if idx_user is None:
             await query.answer("Тебя нет в очереди.", show_alert=True)
             return
-        q.pop(idx)
+        q.pop(idx_user)
         save_state()
-        # уведомляем нового первого, если он сдвинулся
-        if idx == 0 and len(q) > 0:
+        if idx_user == 0 and len(q) > 0:
             try:
                 await context.bot.send_message(
                     chat_id=q[0]["id"],
@@ -204,9 +195,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
         await query.edit_message_text(
-            queue_text(subject) + "\n\n❌ Ты вышел из очереди.",
+            queue_text(idx) + "\n\n❌ Ты вышел из очереди.",
             parse_mode="HTML",
-            reply_markup=subject_keyboard(subject, user_id),
+            reply_markup=subject_keyboard(idx, user_id),
         )
         return
 
